@@ -59,7 +59,8 @@ fun StaticCryptoScreen() {
     var btcInput by remember { mutableStateOf("") }
     var ltcInput by remember { mutableStateOf("") }
     var xmrInput by remember { mutableStateOf("") }
-
+    var lastUpdatedMillis by remember { mutableStateOf(System.currentTimeMillis()) }
+    var secondsAgo by remember { mutableStateOf(0L) }
     var bynRate by remember { mutableStateOf(3.01) }
     var rubRate by remember { mutableStateOf(78.0) }
     var markupRate by remember { mutableStateOf(1.1) }
@@ -72,7 +73,14 @@ fun StaticCryptoScreen() {
     LaunchedEffect(Unit) {
         while (true) {
             prices = fetchCryptoPrices()
+            lastUpdatedMillis = System.currentTimeMillis()
             delay(180_000)
+        }
+    }
+    LaunchedEffect(lastUpdatedMillis) {
+        while (true) {
+            secondsAgo = (System.currentTimeMillis() - lastUpdatedMillis) / 1000
+            delay(1_000)
         }
     }
 
@@ -116,25 +124,40 @@ fun StaticCryptoScreen() {
                 btcInput = it
                 ltcInput = ""
                 xmrInput = ""
-            }, R.drawable.ic_btc)
+            }, R.drawable.ic_btc, prices?.get("BTC"))
 
             CryptoInputField("LTC", ltcInput, {
                 ltcInput = it
                 btcInput = ""
                 xmrInput = ""
-            }, R.drawable.ic_ltc)
+            }, R.drawable.ic_ltc, prices?.get("LTC"))
 
             CryptoInputField("XMR", xmrInput, {
                 xmrInput = it
                 btcInput = ""
                 ltcInput = ""
-            }, R.drawable.ic_xmr)
+            }, R.drawable.ic_xmr, prices?.get("XMR"))
+
 
             Spacer(Modifier.height(24.dp))
 
             CurrencyCard("BYN   ", "%.2f".format(bynTotal), R.drawable.flag_byn)
             CurrencyCard("RUB   ", "%.2f".format(rubTotal), R.drawable.flag_rub)
             CurrencyCard("USD   ", "%.2f".format(usdTotal), R.drawable.flag_usd)
+        }
+        Box(
+            modifier = Modifier
+                .fillMaxSize(),
+            contentAlignment = Alignment.BottomCenter
+        ) {
+            Text(
+                text = "Курсы обновлены ${secondsAgo} сек. назад",
+                fontSize = 12.sp,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+            )
         }
 
         if (showSettings) {
@@ -156,15 +179,34 @@ fun StaticCryptoScreen() {
 
 
 @Composable
-fun CryptoInputField(label: String, value: String, onChange: (String) -> Unit, iconRes: Int) {
+fun CryptoInputField(
+    label: String,
+    value: String,
+    onChange: (String) -> Unit,
+    iconRes: Int,
+    price: Double? // 🆕 добавлен параметр цены
+) {
     OutlinedTextField(
         value = value,
         onValueChange = onChange,
         label = {
             Row(verticalAlignment = Alignment.CenterVertically) {
-                Icon(painter = painterResource(iconRes), contentDescription = null, modifier = Modifier.size(20.dp))
+                Icon(
+                    painter = painterResource(iconRes),
+                    contentDescription = null,
+                    modifier = Modifier.size(20.dp)
+                )
                 Spacer(Modifier.width(8.dp))
                 Text(label)
+
+                if (price != null) {
+                    Spacer(Modifier.width(8.dp))
+                    Text(
+                        text = "$${"%.2f".format(price)}",
+                        fontSize = 12.sp,
+                        color = MaterialTheme.colorScheme.primary
+                    )
+                }
             }
         },
         modifier = Modifier
@@ -172,6 +214,7 @@ fun CryptoInputField(label: String, value: String, onChange: (String) -> Unit, i
             .padding(vertical = 4.dp)
     )
 }
+
 
 @Composable
 fun CurrencyCard(code: String, value: String, iconRes: Int) {
