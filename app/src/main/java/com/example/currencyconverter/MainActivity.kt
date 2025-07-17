@@ -40,6 +40,36 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 
+import android.content.Context
+import android.content.SharedPreferences
+
+private const val PREFS_NAME = "app_prefs"
+private const val KEY_BYN = "byn_rate"
+private const val KEY_RUB = "rub_rate"
+private const val KEY_MARKUP = "markup_rate"
+private const val KEY_BTC = "btc_price"
+private const val KEY_LTC = "ltc_price"
+private const val KEY_XMR = "xmr_price"
+
+
+fun saveCryptoPrices(context: Context, prices: Map<String, Double>) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    prefs.edit()
+        .putFloat(KEY_BTC, prices["BTC"]?.toFloat() ?: 0f)
+        .putFloat(KEY_LTC, prices["LTC"]?.toFloat() ?: 0f)
+        .putFloat(KEY_XMR, prices["XMR"]?.toFloat() ?: 0f)
+        .apply()
+}
+
+fun loadCryptoPrices(context: Context): Map<String, Double> {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    return mapOf(
+        "BTC" to prefs.getFloat(KEY_BTC, 0f).toDouble(),
+        "LTC" to prefs.getFloat(KEY_LTC, 0f).toDouble(),
+        "XMR" to prefs.getFloat(KEY_XMR, 0f).toDouble()
+    )
+}
+
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -53,18 +83,40 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+
+fun saveRates(context: Context, byn: Double, rub: Double, markup: Double) {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    prefs.edit()
+        .putFloat(KEY_BYN, byn.toFloat())
+        .putFloat(KEY_RUB, rub.toFloat())
+        .putFloat(KEY_MARKUP, markup.toFloat())
+        .apply()
+}
+
+fun loadRates(context: Context): Triple<Double, Double, Double> {
+    val prefs = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    val byn = prefs.getFloat(KEY_BYN, 3.01f).toDouble()
+    val rub = prefs.getFloat(KEY_RUB, 78f).toDouble()
+    val markup = prefs.getFloat(KEY_MARKUP, 1.1f).toDouble()
+    return Triple(byn, rub, markup)
+}
+
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun StaticCryptoScreen() {
+    val context = LocalContext.current
+    val (defaultByn, defaultRub, defaultMarkup) = loadRates(context)
     var btcInput by remember { mutableStateOf("") }
     var ltcInput by remember { mutableStateOf("") }
     var xmrInput by remember { mutableStateOf("") }
     var lastUpdatedMillis by remember { mutableStateOf(System.currentTimeMillis()) }
     var secondsAgo by remember { mutableStateOf(0L) }
-    var bynRate by remember { mutableStateOf(3.01) }
-    var rubRate by remember { mutableStateOf(78.0) }
-    var markupRate by remember { mutableStateOf(1.1) }
-
+    var bynRate by remember { mutableStateOf(defaultByn) }
+    var rubRate by remember { mutableStateOf(defaultRub) }
+    var markupRate by remember { mutableStateOf(defaultMarkup) }
+    val snackbarHostState = remember { SnackbarHostState() }
+    val coroutineScope = rememberCoroutineScope()
 
     var prices by remember { mutableStateOf<Map<String, Double>?>(null) }
 
@@ -72,8 +124,17 @@ fun StaticCryptoScreen() {
 
     LaunchedEffect(Unit) {
         while (true) {
-            prices = fetchCryptoPrices()
-            lastUpdatedMillis = System.currentTimeMillis()
+            try {
+                val newPrices = fetchCryptoPrices()
+                prices = newPrices
+                saveCryptoPrices(context, newPrices)
+                lastUpdatedMillis = System.currentTimeMillis()
+            } catch (e: Exception) {
+                prices = loadCryptoPrices(context)
+                coroutineScope.launch {
+                    snackbarHostState.showSnackbar("Не удалось обновить курсы")
+                }
+            }
             delay(180_000)
         }
     }
@@ -99,6 +160,7 @@ fun StaticCryptoScreen() {
     val rubTotal = usdTotal * rubRate * markupRate
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = { Text("Created By Vasch") },
@@ -167,6 +229,7 @@ fun StaticCryptoScreen() {
                 markupRate = markupRate,
                 onDismiss = { showSettings = false },
                 onSave = { newByn, newRub, newMarkup ->
+                    saveRates(context, newByn, newRub, newMarkup)
                     bynRate = newByn
                     rubRate = newRub
                     markupRate = newMarkup
