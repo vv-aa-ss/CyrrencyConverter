@@ -9,9 +9,8 @@ import androidx.compose.ui.platform.LocalContext
 import android.widget.Toast
 import kotlinx.coroutines.delay
 import androidx.compose.ui.text.input.KeyboardType
-
-
-//import androidx.compose.ui.text.input.KeyboardOptions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.ImeAction
 import android.util.Log
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -274,7 +273,12 @@ fun CryptoInputField(
         },
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 4.dp)
+            .padding(vertical = 4.dp),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(
+            keyboardType = KeyboardType.Decimal,   // или Number, если без дробей
+            imeAction = ImeAction.Next
+        )
     )
 }
 
@@ -385,19 +389,31 @@ fun SettingsDialog(
                     value = bynText,
                     onValueChange = { bynText = it },
                     label = { Text("Курс BYN") },
-                    // keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    )
                 )
                 OutlinedTextField(
                     value = rubText,
                     onValueChange = { rubText = it },
                     label = { Text("Курс RUB") },
-                    // keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    )
                 )
                 OutlinedTextField(
                     value = markupText,
                     onValueChange = { markupText = it },
                     label = { Text("Надбавка (1.1 = 10%)") },
-                    // keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number)
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    )
                 )
             }
         }
